@@ -1,40 +1,66 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright © 2022 Francisco de Borja Aranda Castillejo me@fbac.dev
 
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/fbac/sklookup-go/pkg/ebpf"
 	"github.com/spf13/cobra"
 )
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Start steering connections",
+	Long:  `Start targets a PID, and steer all the connections from the provided additional ports to the socket where it's listening`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("start called")
+		doSkLookup()
 	},
 }
 
+var name string
+var pid int
+var ports []uint
+var loglevel string
+
 func init() {
 	rootCmd.AddCommand(startCmd)
+	startCmd.PersistentFlags().StringVarP(&name, "name", "n", "sk_lookup", "Descriptive name for the application")
+	startCmd.PersistentFlags().StringVarP(&loglevel, "loglevel", "l", "info", "Log-level to run the app. Available: info, debug, panic.")
+	startCmd.PersistentFlags().UintSliceVarP(&ports, "ports", "p", []uint{}, "Additional ports")
+	startCmd.PersistentFlags().IntVar(&pid, "pid", -1, "Target process PID")
+}
 
-	// Here you will define your flags and configuration settings.
+func doSkLookup() {
+	if isSanePid(&pid) {
+		convertedPorts := isSanePorts(&ports)
+		ebpf.NewEbpfDispatcher(name, pid, convertedPorts, loglevel).InitializeDispatcher()
+	}
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
+func isSanePid(pid *int) bool {
+	return *pid != -1
+}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+func isSanePorts(ports *[]uint) []uint16 {
+	var ret []uint16
+	if len(*ports) > 0 {
+		for _, v := range *ports {
+			ret = append(ret, uint16(v))
+		}
+	}
+	return ret
 }

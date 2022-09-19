@@ -7,7 +7,7 @@
     - [Versions tested](#versions-tested)
       - [Ubuntu 22.04.1 LTS - Jammy](#ubuntu-22041-lts---jammy)
       - [Fedora release 36 (Thirty Six)](#fedora-release-36-thirty-six)
-  - [TODO](#todo)
+  - [To Do](#to-do)
   - [Demonstration](#demonstration)
 
 ## What is sk_lookup
@@ -24,6 +24,15 @@
 
 ```go
 import "github.com/fbac/sklookup-go/pkg/ebpf"
+
+func main() {
+ name := "AppName"
+ pid := 165929
+ ports := []uint16{222, 2222, 1111, 7878}
+ loglevel := "debug"
+
+ ebpf.NewEbpfDispatcher(name, pid, ports, loglevel).InitializeDispatcher()
+}
 ```
 
 - Use as cli
@@ -68,7 +77,7 @@ bpftrace-0.14.1-1.fc36.x86_64
 bpftool-5.19.4-200.fc36.x86_64
 ```
 
-## TODO
+## To Do
 
 - Use os.Env to supply parameters
 

@@ -85,12 +85,6 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 		e.Log.Panic().Err(err).Msg("Unable to remove memlock")
 	}
 
-	// Load eBPF CollectionSpec
-	_, err := loadBpf()
-	if err != nil {
-		e.Log.Panic().Err(err).Msg("Unable to load eBPF collection spec")
-	}
-
 	// Load eBPF Program and Maps
 	objs := bpfObjects{}
 	if err := loadBpfObjects(&objs, nil); err != nil {
@@ -99,19 +93,19 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 	defer objs.Close()
 
 	// Pin eBPF program and maps
-	if err = objs.SkDispatch.Pin(nameDispatchProg); err != nil {
+	if err := objs.SkDispatch.Pin(nameDispatchProg); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to pin %v", nameDispatchProg)
 	}
 	defer objs.SkDispatch.Unpin()
 	e.Log.Debug().Msgf("Prog %v is pinned: %v", objs.SkDispatch, objs.SkDispatch.IsPinned())
 
-	if err = objs.TargetSocket.Pin(nameSockMap); err != nil {
+	if err := objs.TargetSocket.Pin(nameSockMap); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to pin %v", nameSockMap)
 	}
 	defer objs.TargetSocket.Unpin()
 	e.Log.Debug().Msgf("Map %s is pinned: %v", objs.TargetSocket, objs.TargetSocket.IsPinned())
 
-	if err = objs.AddPorts.Pin(namePortMap); err != nil {
+	if err := objs.AddPorts.Pin(namePortMap); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to pin %v", namePortMap)
 	}
 	defer objs.AddPorts.Unpin()
@@ -119,7 +113,7 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 
 	// Insert fd from listener in the SockMap
 	fd := e.getListenerFd()
-	if err = objs.TargetSocket.Put(socketKey, unsafe.Pointer(&fd)); err != nil {
+	if err := objs.TargetSocket.Put(socketKey, unsafe.Pointer(&fd)); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to insert key into %v", nameSockMap)
 	}
 	e.Log.Debug().Msgf("listener FD: %v", int(fd))

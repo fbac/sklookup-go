@@ -29,14 +29,14 @@ build-test: generate
 
 run: build-test
 	@echo -e "\n# running sklook"
-	${BIN_DIR}/${BIN_NAME} &
+	${BIN_DIR}/${BIN_NAME_TEST} &
 
 #test-bin: run
 #	@echo -e "\n# executing test-target.sh"
 #	@./test-target.sh
 
 stop:
-	@echo -e "\n# kill sklookup-t"
+	@echo -e "\n# kill sklook-t"
 	@pkill ${BIN_NAME_TEST}
 
 clean:
