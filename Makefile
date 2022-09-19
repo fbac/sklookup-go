@@ -6,13 +6,13 @@ BIN_DIR=bin
 BIN_NAME=sk
 PID=$(pidof bin/sk_dispatch)
 
-# allow external CFLAGS
-CC := clang
+# export compiler and flags
+CLANG := clang
 CFLAGS := -g -O2 -Wall -Wextra $(CFLAGS)
-
+generate: export BPF_CLANG := $(CLANG)
+generate: export BPF_CFLAGS := $(CFLAGS)
 generate:
-	@echo -e "# generate assets"
-	go generate ./...
+	cd pkg/ebpf && go generate -v ./...
 
 build: generate
 	@echo -e "# bin/sk build started"

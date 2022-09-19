@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -cflags "-g -O2 -Wall -Wextra" bpf src/ebpf/sk_dispatch.c -- -Isrc/headers
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc $BPF_CLANG -cflags $BPF_CFLAGS bpf src/ebpf/sk_dispatch.c -- -Isrc/headers
 package ebpf
 
 import (
