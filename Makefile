@@ -21,10 +21,12 @@ generate:
 
 build-cli:
 	@echo -e "# sklook build started"
+	mkdir -p bin
 	go build -o ${BIN_DIR}/${BIN_NAME} .
 
 build-test: generate
 	@echo -e "# sklook-test build started"
+	mkdir -p bin
 	go build -o ${BIN_DIR}/${BIN_NAME_TEST} test/*.go
 
 run: build-test

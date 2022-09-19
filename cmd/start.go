@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
-	"errors"
+	"log"
 
 	"github.com/fbac/sklookup-go/pkg/ebpf"
 	"github.com/spf13/cobra"
@@ -28,14 +28,14 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start steering connections",
 	Long:  `Start targets a PID, and steer all the connections from the provided additional ports to the socket where it's listening`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if err := cobra.MinimumNArgs(2)(cmd, args); err != nil {
-			return errors.New("provide at least pid and ports")
-		}
-		return nil
-	},
 	Run: func(cmd *cobra.Command, args []string) {
-		doSkLookup()
+		if isSanePid(&pid) && len(ports) > 0 {
+			convertedPorts := isSanePorts(&ports)
+			ebpf.NewEbpfDispatcher(name, pid, convertedPorts, loglevel).InitializeDispatcher()
+		} else {
+			log.Printf("You must provide a sane PID and at least one additional port\n\n")
+			cmd.Help()
+		}
 	},
 }
 
@@ -53,12 +53,12 @@ func init() {
 	startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func doSkLookup() {
+/*func doSkLookup() {
 	if isSanePid(&pid) && len(ports) > 0 {
 		convertedPorts := isSanePorts(&ports)
 		ebpf.NewEbpfDispatcher(name, pid, convertedPorts, loglevel).InitializeDispatcher()
 	}
-}
+}*/
 
 func isSanePid(pid *int) bool {
 	return *pid != -1
