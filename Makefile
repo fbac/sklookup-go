@@ -3,8 +3,8 @@
 
 # main
 BIN_DIR=bin
-BIN_NAME=sklook
-BIN_NAME_TEST=sklook-t
+BIN_NAME=sk
+BIN_NAME_TEST=sk-t
 PID=$(pidof bin/sk_dispatch)
 
 # allow external CFLAGS
@@ -19,9 +19,9 @@ generate:
 #	@echo -e "\n# executing test-target.sh"
 #	@./test-target.sh
 
-build-cli: test-go
+build-cli:
 	@echo -e "# sklook build started"
-	go build -o ${BIN_DIR}/${BIN_NAME} cmd/*.go
+	go build -o ${BIN_DIR}/${BIN_NAME} .
 
 build-test: generate
 	@echo -e "# sklook-test build started"
