@@ -125,6 +125,8 @@ bpftool-5.19.4-200.fc36.x86_64
 ## To Do
 
 - Use os.Env to supply parameters
+- Include test suite
+- Polish Makefile
 - Finish README.md
 
 ## Demonstration
