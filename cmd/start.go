@@ -53,13 +53,6 @@ func init() {
 	startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-/*func doSkLookup() {
-	if isSanePid(&pid) && len(ports) > 0 {
-		convertedPorts := isSanePorts(&ports)
-		ebpf.NewEbpfDispatcher(name, pid, convertedPorts, loglevel).InitializeDispatcher()
-	}
-}*/
-
 func isSanePid(pid *int) bool {
 	return *pid != -1
 }

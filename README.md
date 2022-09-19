@@ -15,15 +15,18 @@
 
 ## What is sk_lookup
 
-**/* WIP Section */**
+**WIP Section**
 
 Fast introduction to technologies used:
 
   - eBPF
   - BTF
+  - bpf2go
   - sk_lookup <https://www.kernel.org/doc/html/latest/bpf/prog_sk_lookup.html>
 
 ## Use cases
+
+**WIP Section**
 
 - Attaching ports to an already running service
 - Serving applications from multiple ports while binding only to one
