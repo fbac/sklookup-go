@@ -78,8 +78,6 @@ func NewEbpfDispatcher(name string, pid int, ports []uint16, loglevel string) *E
 		logger.Fatal().Msg("No additional ports provided")
 	}
 
-	// path checks, default with os.Executable
-
 	return &EbpfDispatcher{Name: name, TargetPID: pid, AdditionalPorts: ports, Log: logger}
 }
 

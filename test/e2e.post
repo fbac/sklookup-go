@@ -1,0 +1,10 @@
+#!/bin/bash
+
+### test pre-flight
+echo "> killing nc and sk processes"
+killall nc
+killall sk
+
+echo "> removing ebpf leftovers in /sys/fs/bpf/"
+rm -rf  /sys/fs/bpf/*-nc-test &> /dev/null
+sleep 0.5
