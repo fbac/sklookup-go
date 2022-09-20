@@ -154,19 +154,31 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 // getListenerFd opens a file descriptor and duplicates it to be used by the eBPF program
 // This is an abstraction of the systemcall pidfd_getfd(pidfd_open(PID, 0), FD, 0)
 func (e *EbpfDispatcher) getListenerFd() uintptr {
-	pidFd, err := pidfd.Open(e.TargetPID, 0)
-	if err != nil {
-		e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
-	}
-	e.Log.Debug().Msgf("getListenerFd.pidFd: %v", pidFd)
+	// If this process is not the same process, proceed to duplicate fd
+	if e.TargetPID != os.Getpid() {
+		pidFd, err := pidfd.Open(e.TargetPID, 0)
+		if err != nil {
+			e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
+		}
+		e.Log.Debug().Msgf("getListenerFd.pidFd: %v", pidFd)
 
-	listenFd, err := pidFd.GetFd(int(pidFd), 0)
-	if err != nil {
-		e.Log.Panic().Err(err).Msgf("Unable to duplicate target fd %v", pidFd)
-	}
-	e.Log.Debug().Msgf("getListenerFd.listenFd: %v", listenFd)
+		listenFd, err := pidFd.GetFd(int(pidFd), 0)
+		if err != nil {
+			e.Log.Panic().Err(err).Msgf("Unable to duplicate target fd %v", pidFd)
+		}
+		e.Log.Debug().Msgf("getListenerFd.listenFd: %v", listenFd)
 
-	file := os.NewFile(uintptr(listenFd), "")
+		file := os.NewFile(uintptr(listenFd), "")
+		return file.Fd()
+	}
+
+	// Arrive here if we're in the same process
+	pidFd, err := pidfd.Open(os.Getpid(), 0)
+	if err != nil {
+		e.Log.Panic().Err(err).Msgf("Unable to open self pid %v", os.Getpid())
+	}
+
+	file := os.NewFile(uintptr(pidFd), "")
 	return file.Fd()
 }
 
