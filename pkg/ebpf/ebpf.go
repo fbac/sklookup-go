@@ -127,17 +127,17 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 	e.Log.Debug().Msgf("Map %s is pinned: %v", objs.AddPorts, objs.AddPorts.IsPinned())
 
 	// Check if there's a need of duplicating TargetPID file descriptors
-	/*	var fd uintptr
-		e.Log.Debug().Msgf("TargetPID: %v, os.Getpid(): %v", e.TargetPID, os.Getpid())
-		if e.TargetPID != os.Getpid() {*/
-	fd := e.getListenerFd()
-	/*	} else {
+	var fd uintptr
+	e.Log.Debug().Msgf("TargetPID: %v, os.Getpid(): %v", e.TargetPID, os.Getpid())
+	if e.TargetPID != os.Getpid() {
+		fd = e.getListenerFd()
+	} else {
 		selfPID, err := pidfd.Open(os.Getpid(), 0)
 		if err != nil {
 			e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
 		}
 		fd = uintptr(selfPID)
-	}*/
+	}
 
 	// Insert fd from listener in the SockMap
 	if err := objs.TargetSocket.Put(socketKey, unsafe.Pointer(&fd)); err != nil {
@@ -166,34 +166,23 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 // getListenerFd opens a file descriptor and duplicates it to be used by the eBPF program
 // This is an abstraction of the systemcall pidfd_getfd(pidfd_open(PID, 0), FD, 0)
 func (e *EbpfDispatcher) getListenerFd() uintptr {
-	// Target is not the same process
-	if e.TargetPID != os.Getpid() {
-		// pidfd_open
-		pidFd, err := pidfd.Open(e.TargetPID, 0)
-		if err != nil {
-			e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
-		}
-		e.Log.Trace().Msgf("getListenerFd.pidFd: %v", pidFd)
-
-		// pidfd_getfd
-		listenFd, err := pidFd.GetFd(int(pidFd), 0)
-		if err != nil {
-			e.Log.Panic().Err(err).Msgf("Unable to duplicate target fd %v", pidFd)
-		}
-		e.Log.Trace().Msgf("getListenerFd.listenFd: %v", listenFd)
-
-		file := os.NewFile(uintptr(listenFd), "")
-
-		return file.Fd()
-
-	} else {
-		// Caller and receiver are the same process.
-		selfPID, err := pidfd.Open(os.Getpid(), 0)
-		if err != nil {
-			e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
-		}
-		return uintptr(selfPID)
+	// pidfd_open
+	pidFd, err := pidfd.Open(e.TargetPID, 0)
+	if err != nil {
+		e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
 	}
+	e.Log.Trace().Msgf("getListenerFd.pidFd: %v", pidFd)
+
+	// pidfd_getfd
+	listenFd, err := pidFd.GetFd(int(pidFd), 0)
+	if err != nil {
+		e.Log.Panic().Err(err).Msgf("Unable to duplicate target fd %v", pidFd)
+	}
+	e.Log.Trace().Msgf("getListenerFd.listenFd: %v", listenFd)
+
+	file := os.NewFile(uintptr(listenFd), "")
+
+	return file.Fd()
 }
 
 // attachAdditionalPorts inserts additional ports into the ports HashMap
