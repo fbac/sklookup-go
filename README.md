@@ -1,8 +1,8 @@
 # sklookup-go
 
 - [sklookup-go](#sklookup-go)
-  - [What is sk_lookup](#what-is-sk_lookup)
-  - [Use cases](#use-cases)
+  - [What is sk_lookup (WIP Section)](#what-is-sk_lookup-wip-section)
+  - [Use cases (WIP Section)](#use-cases-wip-section)
   - [Requirements](#requirements)
   - [Usage](#usage)
     - [As golang package](#as-golang-package)
@@ -13,20 +13,16 @@
   - [To Do](#to-do)
   - [Demonstration](#demonstration)
 
-## What is sk_lookup
-
-**WIP Section**
+## What is sk_lookup (WIP Section)
 
 Fast introduction to technologies used:
 
-  - eBPF
-  - BTF
-  - bpf2go
-  - sk_lookup <https://www.kernel.org/doc/html/latest/bpf/prog_sk_lookup.html>
+- eBPF
+- BTF
+- bpf2go
+- sk_lookup <https://www.kernel.org/doc/html/latest/bpf/prog_sk_lookup.html>
 
-## Use cases
-
-**WIP Section**
+## Use cases (WIP Section)
 
 - Attaching ports to an already running service
 - Serving applications from multiple ports while binding only to one
@@ -43,7 +39,7 @@ Fast introduction to technologies used:
 
 ### As golang package
 
-- Use as library, from your go code
+- Additional ports can be attached to an specific pid, when the caller and target processes are not the same.
 
 ```go
 import "github.com/fbac/sklookup-go/pkg/ebpf"
@@ -54,7 +50,38 @@ func main() {
  ports := []uint16{222, 2222, 1111, 7878}
  loglevel := "debug"
 
- ebpf.NewEbpfDispatcher(name, pid, ports, loglevel).InitializeDispatcher()
+ ebpf.NewExternalDispatcher(name, pid, ports, loglevel).InitializeDispatcher()
+}
+```
+
+- Or by attaching a file descript, when the caller and target processes are the same.
+  
+```go
+import "github.com/fbac/sklookup-go/pkg/ebpf"
+
+func main() {
+ // Resolve and listen to and create a listener into some address
+ addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%v", ":443"))
+ if err != nil {
+  log.Fatalln(err)
+ }
+
+ listener, err := net.ListenTCP("tcp", addr)
+ if err != nil {
+  log.Fatalln(err)
+ }
+ defer listener.Close()
+
+ // Get listener's file descriptor by retrieving it as a file
+ f, _ := listener.File()
+ defer f.Close()
+
+ name := "AppName"
+ fd := f.Fd() // Pass the fd into eBPF dispatcher
+ ports := []uint16{1025, 1026, 1027, 1028}
+ loglevel := "debug"
+
+ ebpf.NewInternalDispatcher(name, fd, ports, loglevel).InitializeDispatcher()
 }
 ```
 
