@@ -129,9 +129,8 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 	// Insert fd from listener in the SockMap
 	fd := e.getListenerFd()
 	if err := objs.TargetSocket.Put(socketKey, unsafe.Pointer(&fd)); err != nil {
-		e.Log.Panic().Err(err).Msgf("Unable to insert key into %v", nameSockMap)
+		e.Log.Panic().Err(err).Msgf("Unable to insert key %v into %v", unsafe.Pointer(&fd), nameSockMap)
 	}
-	e.Log.Debug().Msgf("listener FD: %v", int(fd))
 
 	// Attach additional ports to the HashMap
 	e.attachAdditionalPorts(objs.AddPorts)
@@ -159,11 +158,13 @@ func (e *EbpfDispatcher) getListenerFd() uintptr {
 	if err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
 	}
+	e.Log.Debug().Msgf("getListenerFd.pidFd: %v", pidFd)
 
 	listenFd, err := pidFd.GetFd(int(pidFd), 0)
 	if err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to duplicate target fd %v", pidFd)
 	}
+	e.Log.Debug().Msgf("getListenerFd.listenFd: %v", listenFd)
 
 	file := os.NewFile(uintptr(listenFd), "")
 	return file.Fd()
