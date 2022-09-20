@@ -84,7 +84,7 @@ func NewEbpfDispatcher(name string, pid int, ports []uint16, loglevel string) *E
 // InitializeDispatcher holds the whole logic and starts the program
 func (e *EbpfDispatcher) InitializeDispatcher() {
 	ctx := newCancelableContext()
-	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing", e.Name)
+	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing, target pid %v, additional ports %v", e.Name, e.TargetPID, e.AdditionalPorts)
 
 	// Initialize custom vars, necessary to run more than one instance
 	nameSockMap := fmt.Sprintf("%s-%s", esock, e.Name)
