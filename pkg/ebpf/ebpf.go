@@ -185,25 +185,21 @@ func (e *EbpfInternalDispatcher) InitializeDispatcher() {
 	if err := loadBpfObjects(&objs, nil); err != nil {
 		log.Fatalf("loading objects: %v", err)
 	}
-	defer objs.Close()
 
 	// Pin eBPF program and maps
 	if err := objs.SkDispatch.Pin(nameDispatchProg); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to pin %v", nameDispatchProg)
 	}
-	defer objs.SkDispatch.Unpin()
 	e.Log.Debug().Msgf("Prog %v is pinned: %v", objs.SkDispatch, objs.SkDispatch.IsPinned())
 
 	if err := objs.TargetSocket.Pin(nameSockMap); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to pin %v", nameSockMap)
 	}
-	defer objs.TargetSocket.Unpin()
 	e.Log.Debug().Msgf("Map %s is pinned: %v", objs.TargetSocket, objs.TargetSocket.IsPinned())
 
 	if err := objs.AddPorts.Pin(namePortMap); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to pin %v", namePortMap)
 	}
-	defer objs.AddPorts.Unpin()
 	e.Log.Debug().Msgf("Map %s is pinned: %v", objs.AddPorts, objs.AddPorts.IsPinned())
 
 	// Insert fd from listener in the SockMap
@@ -220,11 +216,17 @@ func (e *EbpfInternalDispatcher) InitializeDispatcher() {
 		e.Log.Panic().Err(err).Msg("Unable to get dispatcher link")
 	}
 	lnk.Pin(nameDispatchLink)
-	defer lnk.Close()
-	defer lnk.Unpin()
 
 	// Program fully initialized
 	e.Log.Info().Msgf("eBPF dispatcher for app %s with FD %v initialized.", e.Name, e.FileDescriptor)
+
+	// Housekeeping
+	defer objs.Close()
+	defer lnk.Close()
+	defer objs.SkDispatch.Unpin()
+	defer objs.TargetSocket.Unpin()
+	defer objs.AddPorts.Unpin()
+	defer lnk.Unpin()
 
 	// Wait until done
 	<-ctx.Done()
