@@ -85,7 +85,7 @@ func newEbpfDispatcher(name string, ports []uint16, loglevel string) EbpfDispatc
 }
 
 // InitializeDispatcherByPID initializes sk_lookup on a given pid
-func (e *EbpfExternalDispatcher) InitializeDispatcherByPID() {
+func (e *EbpfExternalDispatcher) InitializeDispatcher() {
 	ctx := newCancelableContext()
 	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing. Traffic from %v will be dispatched to PID %v", e.Name, e.AdditionalPorts, e.TargetPID)
 
@@ -162,7 +162,7 @@ func (e *EbpfExternalDispatcher) InitializeDispatcherByPID() {
 }
 
 // InitializeDispatcherByFD initializes the sk_lookup on a given socket fd
-func (e *EbpfInternalDispatcher) InitializeDispatcherByFD() {
+func (e *EbpfInternalDispatcher) InitializeDispatcher() {
 	ctx := newCancelableContext()
 	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing. Traffic from %v will be dispatched to FD %v", e.Name, e.AdditionalPorts, e.FileDescriptor)
 
