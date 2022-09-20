@@ -31,7 +31,7 @@ var startCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if isSanePid(&pid) && len(ports) > 0 {
 			convertedPorts := isSanePorts(&ports)
-			ebpf.NewEbpfDispatcher(name, pid, convertedPorts, loglevel).InitializeDispatcher()
+			ebpf.NewExternalDispatcher(name, pid, convertedPorts, loglevel).InitializeDispatcherByPID()
 		} else {
 			log.Printf("You must provide a sane PID and at least one additional port\n\n")
 			cmd.Help()

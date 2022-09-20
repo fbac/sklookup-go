@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	socketKey    uint32 = 0
+	mapKey       uint32 = 0
 	ebpfDir      string = "/sys/fs/bpf/"
 	esock        string = "/sys/fs/bpf/sock"
 	eport        string = "/sys/fs/bpf/port"
@@ -48,41 +48,44 @@ type EbpfDispatcher struct {
 	Name            string
 	Log             zerolog.Logger
 	LogLevel        string
-	TargetPID       int
 	AdditionalPorts []uint16
 }
 
-// NewEbpfDispatcher returns a new pointer to an EbpfDispatcher instance
-func NewEbpfDispatcher(name string, pid int, ports []uint16, loglevel string) *EbpfDispatcher {
-	// logger config
-	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
-	switch loglevel {
-	case "info":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "debug":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "panic":
-		zerolog.SetGlobalLevel(zerolog.PanicLevel)
-	default:
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	}
-
-	// pid checks
-	_, err := os.FindProcess(pid)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Unable to find provided PID")
-	}
-
-	// ports checks
-	if len(ports) == 0 {
-		logger.Fatal().Msg("No additional ports provided")
-	}
-
-	return &EbpfDispatcher{Name: name, TargetPID: pid, AdditionalPorts: ports, Log: logger}
+type EbpfInternalDispatcher struct {
+	EbpfDispatcher
+	FileDescriptor uintptr
 }
 
-// InitializeDispatcher holds the whole logic and starts the program
-func (e *EbpfDispatcher) InitializeDispatcher() {
+type EbpfExternalDispatcher struct {
+	EbpfDispatcher
+	TargetPID int
+}
+
+// NewExternalDispatcher returns a new instance of external eBPF dispatcher
+func NewExternalDispatcher(name string, pid int, ports []uint16, loglevel string) *EbpfExternalDispatcher {
+	_, err := os.FindProcess(pid)
+	if err != nil {
+		panic(err)
+	}
+	return &EbpfExternalDispatcher{EbpfDispatcher: newEbpfDispatcher(name, ports, loglevel), TargetPID: pid}
+}
+
+// NewInternalDispatcher returns a new instance of internal eBPF dispatcher
+func NewInternalDispatcher(name string, fd uintptr, ports []uint16, loglevel string) *EbpfInternalDispatcher {
+	return &EbpfInternalDispatcher{EbpfDispatcher: newEbpfDispatcher(name, ports, loglevel), FileDescriptor: fd}
+}
+
+func newEbpfDispatcher(name string, ports []uint16, loglevel string) EbpfDispatcher {
+	logger := newLogging(loglevel)
+
+	if !checkValidPorts(ports) {
+		logger.Fatal().Msgf("Ports provided not valid")
+	}
+	return EbpfDispatcher{Name: name, AdditionalPorts: ports, Log: logger}
+}
+
+// InitializeDispatcherByPID initializes sk_lookup on a given pid
+func (e *EbpfExternalDispatcher) InitializeDispatcherByPID() {
 	ctx := newCancelableContext()
 	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing. Traffic from %v will be dispatched to PID %v", e.Name, e.AdditionalPorts, e.TargetPID)
 
@@ -128,19 +131,14 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 
 	// Check if there's a need of duplicating TargetPID file descriptors
 	var fd uintptr
-	e.Log.Debug().Msgf("TargetPID: %v, os.Getpid(): %v", e.TargetPID, os.Getpid())
 	if e.TargetPID != os.Getpid() {
 		fd = e.getListenerFd()
 	} else {
-		/*selfPID, err := pidfd.Open(os.Getpid(), 0)
-		if err != nil {
-			e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
-		}*/
-		fd = 3
+		e.Log.Panic().Msg("Calling InitializeDispatcherByPID is not allowed where TargetPID == os.Getpid()")
 	}
 
 	// Insert fd from listener in the SockMap
-	if err := objs.TargetSocket.Put(socketKey, unsafe.Pointer(&fd)); err != nil {
+	if err := objs.TargetSocket.Put(mapKey, unsafe.Pointer(&fd)); err != nil {
 		e.Log.Panic().Err(err).Msgf("Unable to insert key %v into %v", fd, nameSockMap)
 	}
 
@@ -157,7 +155,76 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 	defer lnk.Unpin()
 
 	// Program fully initialized
-	e.Log.Info().Msgf("eBPF dispatcher %s initialized. Dispatching traffic from ports %v to original pid %v", e.Name, e.AdditionalPorts, e.TargetPID)
+	e.Log.Info().Msgf("eBPF dispatcher for app %s with PID %v initialized.", e.Name, e.TargetPID)
+
+	// Wait until done
+	<-ctx.Done()
+}
+
+// InitializeDispatcherByFD initializes the sk_lookup on a given socket fd
+func (e *EbpfInternalDispatcher) InitializeDispatcherByFD() {
+	ctx := newCancelableContext()
+	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing. Traffic from %v will be dispatched to FD %v", e.Name, e.AdditionalPorts, e.FileDescriptor)
+
+	// Initialize custom vars, necessary to run more than one instance
+	nameSockMap := fmt.Sprintf("%s-%s", esock, e.Name)
+	namePortMap := fmt.Sprintf("%s-%s", eport, e.Name)
+	nameDispatchProg := fmt.Sprintf("%s-%s", dispatchProg, e.Name)
+	nameDispatchLink := fmt.Sprintf("%s-%s", dispatchLink, e.Name)
+	if !checkFileDoNotExist(nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink) {
+		e.Log.Fatal().Msgf("Check that previous eBPF files doesn't exist: %s %s %s %s", nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink)
+	}
+
+	// Allow locking memory for eBPF resources
+	if err := rlimit.RemoveMemlock(); err != nil {
+		e.Log.Panic().Err(err).Msg("Unable to remove memlock")
+	}
+
+	// Load eBPF Program and Maps
+	objs := bpfObjects{}
+	if err := loadBpfObjects(&objs, nil); err != nil {
+		log.Fatalf("loading objects: %v", err)
+	}
+	defer objs.Close()
+
+	// Pin eBPF program and maps
+	if err := objs.SkDispatch.Pin(nameDispatchProg); err != nil {
+		e.Log.Panic().Err(err).Msgf("Unable to pin %v", nameDispatchProg)
+	}
+	defer objs.SkDispatch.Unpin()
+	e.Log.Debug().Msgf("Prog %v is pinned: %v", objs.SkDispatch, objs.SkDispatch.IsPinned())
+
+	if err := objs.TargetSocket.Pin(nameSockMap); err != nil {
+		e.Log.Panic().Err(err).Msgf("Unable to pin %v", nameSockMap)
+	}
+	defer objs.TargetSocket.Unpin()
+	e.Log.Debug().Msgf("Map %s is pinned: %v", objs.TargetSocket, objs.TargetSocket.IsPinned())
+
+	if err := objs.AddPorts.Pin(namePortMap); err != nil {
+		e.Log.Panic().Err(err).Msgf("Unable to pin %v", namePortMap)
+	}
+	defer objs.AddPorts.Unpin()
+	e.Log.Debug().Msgf("Map %s is pinned: %v", objs.AddPorts, objs.AddPorts.IsPinned())
+
+	// Insert fd from listener in the SockMap
+	if err := objs.TargetSocket.Put(mapKey, unsafe.Pointer(&e.FileDescriptor)); err != nil {
+		e.Log.Panic().Err(err).Msgf("Unable to insert key %v into %v", e.FileDescriptor, nameSockMap)
+	}
+
+	// Attach additional ports to the HashMap
+	e.attachAdditionalPorts(objs.AddPorts)
+
+	// Link, Pin and defer clean dispatch link
+	lnk, err := getDispatcherLink(objs.SkDispatch)
+	if err != nil {
+		e.Log.Panic().Err(err).Msg("Unable to get dispatcher link")
+	}
+	lnk.Pin(nameDispatchLink)
+	defer lnk.Close()
+	defer lnk.Unpin()
+
+	// Program fully initialized
+	e.Log.Info().Msgf("eBPF dispatcher for app %s with FD %v initialized.", e.Name, e.FileDescriptor)
 
 	// Wait until done
 	<-ctx.Done()
@@ -165,7 +232,7 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 
 // getListenerFd opens a file descriptor and duplicates it to be used by the eBPF program
 // This is an abstraction of the systemcall pidfd_getfd(pidfd_open(PID, 0), FD, 0)
-func (e *EbpfDispatcher) getListenerFd() uintptr {
+func (e *EbpfExternalDispatcher) getListenerFd() uintptr {
 	// pidfd_open
 	pidFd, err := pidfd.Open(e.TargetPID, 0)
 	if err != nil {
@@ -224,6 +291,10 @@ func checkFileDoNotExist(files ...string) bool {
 	return true
 }
 
+func checkValidPorts(p []uint16) bool {
+	return len(p) >= 0
+}
+
 // newCancelableContext returns a context that gets canceled by a SIGINT
 func newCancelableContext() context.Context {
 	doneCh := make(chan os.Signal, 1)
@@ -238,4 +309,19 @@ func newCancelableContext() context.Context {
 	}()
 
 	return ctx
+}
+
+func newLogging(loglevel string) zerolog.Logger {
+	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+	switch loglevel {
+	case "info":
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case "debug":
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case "panic":
+		zerolog.SetGlobalLevel(zerolog.PanicLevel)
+	default:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+	return logger
 }
