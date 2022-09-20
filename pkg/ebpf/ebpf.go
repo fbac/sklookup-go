@@ -132,11 +132,11 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 	if e.TargetPID != os.Getpid() {
 		fd = e.getListenerFd()
 	} else {
-		selfPID, err := pidfd.Open(os.Getpid(), 0)
+		/*selfPID, err := pidfd.Open(os.Getpid(), 0)
 		if err != nil {
 			e.Log.Panic().Err(err).Msgf("Unable to open target pid %v", e.TargetPID)
-		}
-		fd = uintptr(selfPID)
+		}*/
+		fd = 3
 	}
 
 	// Insert fd from listener in the SockMap
