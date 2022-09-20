@@ -285,10 +285,10 @@ func getDispatcherLink(p *ebpf.Program) (*link.NetNsLink, error) {
 func checkFileDoNotExist(files ...string) bool {
 	for _, v := range files {
 		if _, err := os.Stat(v); err == nil {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func checkValidPorts(p []uint16) bool {

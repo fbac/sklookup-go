@@ -39,7 +39,7 @@ Fast introduction to technologies used:
 
 ### As golang package
 
-- Additional ports can be attached to an specific pid, when the caller and target processes are not the same.
+- Additional ports can be attached to a specific pid, when the caller and target processes are not the same.
 
 ```go
 import "github.com/fbac/sklookup-go/pkg/ebpf"
@@ -54,7 +54,7 @@ func main() {
 }
 ```
 
-- Or by attaching a file descript, when the caller and target processes are the same.
+- Or by attaching a file descriptor, when the caller and target processes are the same.
   
 ```go
 import "github.com/fbac/sklookup-go/pkg/ebpf"
