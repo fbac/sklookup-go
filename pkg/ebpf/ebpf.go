@@ -84,7 +84,7 @@ func NewEbpfDispatcher(name string, pid int, ports []uint16, loglevel string) *E
 // InitializeDispatcher holds the whole logic and starts the program
 func (e *EbpfDispatcher) InitializeDispatcher() {
 	ctx := newCancelableContext()
-	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing, target pid %v, additional ports %v", e.Name, e.TargetPID, e.AdditionalPorts)
+	e.Log.Info().Msgf("eBPF dispatcher with name %s initializing. Traffic from %v will be dispatched to PID %v", e.Name, e.AdditionalPorts, e.TargetPID)
 
 	// Initialize custom vars, necessary to run more than one instance
 	nameSockMap := fmt.Sprintf("%s-%s", esock, e.Name)
@@ -129,7 +129,7 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 	// Insert fd from listener in the SockMap
 	fd := e.getListenerFd()
 	if err := objs.TargetSocket.Put(socketKey, unsafe.Pointer(&fd)); err != nil {
-		e.Log.Panic().Err(err).Msgf("Unable to insert key %v into %v", unsafe.Pointer(&fd), nameSockMap)
+		e.Log.Panic().Err(err).Msgf("Unable to insert key %v into %v", fd, nameSockMap)
 	}
 
 	// Attach additional ports to the HashMap
@@ -155,6 +155,7 @@ func (e *EbpfDispatcher) InitializeDispatcher() {
 // This is an abstraction of the systemcall pidfd_getfd(pidfd_open(PID, 0), FD, 0)
 func (e *EbpfDispatcher) getListenerFd() uintptr {
 	// If this process is not the same process, proceed to duplicate fd
+	e.Log.Debug().Msgf("TargetPID: %v, os.Getpid(): %v", e.TargetPID, os.Getpid())
 	if e.TargetPID != os.Getpid() {
 		pidFd, err := pidfd.Open(e.TargetPID, 0)
 		if err != nil {
