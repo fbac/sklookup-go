@@ -12,6 +12,6 @@ echo "> running nc -4kle /bin/cat 127.0.0.1 7777 &"
 nc -4kle /bin/cat 127.0.0.1 7777 &
 sleep 0.5
 
-echo "> running bin/sk start --pid $(pidof nc) --ports 5050,6060,7070,8080 --name nc-test --loglevel debug &>/dev/null &"
-bin/sk start --pid $(pidof nc) --ports 5050,6060,7070,8080 --name nc-test --loglevel debug &>/dev/null &
+echo "> running bin/sk start --pid $(pidof nc) --ports 5050,6060,7070,8080 --name nc-test --loglevel debug &"
+bin/sk start --pid $(pidof nc) --ports 5050,6060,7070,8080 --name nc-test --loglevel debug &
 sleep 0.5

@@ -44,7 +44,7 @@ const (
 )
 
 // EbpfDispatcher represents an instance of the eBPF sk_lookup dispatcher
-type EbpfDispatcher struct {
+type ebpfDispatcher struct {
 	Name            string
 	Log             zerolog.Logger
 	LogLevel        string
@@ -52,12 +52,12 @@ type EbpfDispatcher struct {
 }
 
 type EbpfInternalDispatcher struct {
-	EbpfDispatcher
+	ebpfDispatcher
 	FileDescriptor uintptr
 }
 
 type EbpfExternalDispatcher struct {
-	EbpfDispatcher
+	ebpfDispatcher
 	TargetPID int
 }
 
@@ -67,21 +67,21 @@ func NewExternalDispatcher(name string, pid int, ports []uint16, loglevel string
 	if err != nil {
 		panic(err)
 	}
-	return &EbpfExternalDispatcher{EbpfDispatcher: newEbpfDispatcher(name, ports, loglevel), TargetPID: pid}
+	return &EbpfExternalDispatcher{ebpfDispatcher: *newEbpfDispatcher(name, ports, loglevel), TargetPID: pid}
 }
 
 // NewInternalDispatcher returns a new instance of internal eBPF dispatcher
 func NewInternalDispatcher(name string, fd uintptr, ports []uint16, loglevel string) *EbpfInternalDispatcher {
-	return &EbpfInternalDispatcher{EbpfDispatcher: newEbpfDispatcher(name, ports, loglevel), FileDescriptor: fd}
+	return &EbpfInternalDispatcher{ebpfDispatcher: *newEbpfDispatcher(name, ports, loglevel), FileDescriptor: fd}
 }
 
-func newEbpfDispatcher(name string, ports []uint16, loglevel string) EbpfDispatcher {
+func newEbpfDispatcher(name string, ports []uint16, loglevel string) *ebpfDispatcher {
 	logger := newLogging(loglevel)
 
 	if !checkValidPorts(ports) {
 		logger.Fatal().Msgf("Ports provided not valid")
 	}
-	return EbpfDispatcher{Name: name, AdditionalPorts: ports, Log: logger}
+	return &ebpfDispatcher{Name: name, AdditionalPorts: ports, Log: logger}
 }
 
 // InitializeDispatcherByPID initializes sk_lookup on a given pid
@@ -94,7 +94,7 @@ func (e *EbpfExternalDispatcher) InitializeDispatcher() {
 	namePortMap := fmt.Sprintf("%s-%s", eport, e.Name)
 	nameDispatchProg := fmt.Sprintf("%s-%s", dispatchProg, e.Name)
 	nameDispatchLink := fmt.Sprintf("%s-%s", dispatchLink, e.Name)
-	if !checkFileDoNotExist(nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink) {
+	if checkFileDoNotExist(nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink) {
 		e.Log.Fatal().Msgf("Check that previous eBPF files doesn't exist: %s %s %s %s", nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink)
 	}
 
@@ -171,7 +171,7 @@ func (e *EbpfInternalDispatcher) InitializeDispatcher() {
 	namePortMap := fmt.Sprintf("%s-%s", eport, e.Name)
 	nameDispatchProg := fmt.Sprintf("%s-%s", dispatchProg, e.Name)
 	nameDispatchLink := fmt.Sprintf("%s-%s", dispatchLink, e.Name)
-	if !checkFileDoNotExist(nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink) {
+	if checkFileDoNotExist(nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink) {
 		e.Log.Fatal().Msgf("Check that previous eBPF files doesn't exist: %s %s %s %s", nameSockMap, namePortMap, nameDispatchProg, nameDispatchLink)
 	}
 
@@ -255,7 +255,7 @@ func (e *EbpfExternalDispatcher) getListenerFd() uintptr {
 }
 
 // attachAdditionalPorts inserts additional ports into the ports HashMap
-func (e *EbpfDispatcher) attachAdditionalPorts(hashMap *ebpf.Map) {
+func (e *ebpfDispatcher) attachAdditionalPorts(hashMap *ebpf.Map) {
 	for _, v := range e.AdditionalPorts {
 		e.Log.Debug().Msgf("adding port: %v", v)
 		if err := hashMap.Put(v, uint8(0)); err != nil {
