@@ -31,7 +31,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 /* Declare BPF maps */
 
-/* List of additional service ports. Key is the port number. */
+/* List of additional service ports. 
+Key is the port number. */
+
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, __u16);
