@@ -1,8 +1,8 @@
 # sklookup-go
 
 - [sklookup-go](#sklookup-go)
-  - [What is sk_lookup (WIP Section)](#what-is-sk_lookup-wip-section)
-  - [Use cases (WIP Section)](#use-cases-wip-section)
+  - [What is sk_lookup](#what-is-sk_lookup-wip-section)
+  - [Use cases](#use-cases-wip-section)
   - [Requirements](#requirements)
   - [Usage](#usage)
     - [As golang package](#as-golang-package)
@@ -13,7 +13,7 @@
   - [To Do](#to-do)
   - [Demonstration](#demonstration)
 
-## What is sk_lookup (WIP Section)
+## What is sk_lookup
 
 Fast introduction to technologies used:
 
@@ -22,7 +22,7 @@ Fast introduction to technologies used:
 - bpf2go
 - sk_lookup <https://www.kernel.org/doc/html/latest/bpf/prog_sk_lookup.html>
 
-## Use cases (WIP Section)
+## Use cases
 
 - Attaching ports to an already running service
 - Serving applications from multiple ports while binding only to one
